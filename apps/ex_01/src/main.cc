@@ -158,6 +158,10 @@ int main() {
 
   auto shader = init_shader();
 
+  float sigma_a = 0.7f;
+  glm::vec3 volume_colour(1,1,1);
+  glm::vec3 wall_colour(0.5,0,0);
+
   /* ************************************************************************************************
    * **
    * **   Main render loop
@@ -172,6 +176,10 @@ int main() {
     ImGui::NewFrame();
 
     ImGui::Begin("Controls", nullptr, 0);
+
+    ImGui::SliderFloat("sigma_a", &sigma_a, 0, 1.0f, "%0.3f", ImGuiSliderFlags_Logarithmic);
+    ImGui::ColorEdit3("voluVme colour", &volume_colour[0],ImGuiColorEditFlags_None);
+    ImGui::ColorEdit3("Wall colour", &wall_colour[0],ImGuiColorEditFlags_None);
     ImGui::End();
 
     /* ********************************************************************************
@@ -190,6 +198,10 @@ int main() {
     glBindVertexArray(vao);
     shader->use();
     shader->set_uniform("aspect_ratio", static_cast<float>(display_w) / static_cast<float>(display_h));
+    shader->set_uniform("volume_colour", volume_colour);
+    shader->set_uniform("wall_colour", wall_colour);
+    shader->set_uniform("sigma_a", sigma_a);
+
     glDrawElements(GL_TRIANGLES, 36,GL_UNSIGNED_INT, 0);
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

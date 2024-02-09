@@ -4,8 +4,10 @@ layout(location=0) in vec3 pos;
 layout(location=1) in vec3 col;
 
 layout (location=0) out vec3 colour;
+layout (location=1) out vec3 world_pos;
 
 uniform float aspect_ratio;
+uniform vec3 wall_colour;
 
 mat4 make_ortho() {
     float l = -3.0f*aspect_ratio;
@@ -27,5 +29,6 @@ mat4 make_ortho() {
 void main() {
     mat4 project = make_ortho();
     gl_Position = project * vec4(pos, 1.0);
-    colour = col;
+    colour = wall_colour;
+    world_pos = pos;
 }
