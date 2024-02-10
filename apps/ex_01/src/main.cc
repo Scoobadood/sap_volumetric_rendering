@@ -2,6 +2,7 @@
 #include <spdlog/spdlog.h>
 #include "OpenGL/gl3.h"
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 /* ************************************************************************************************
  * **
@@ -80,24 +81,19 @@ std::shared_ptr<Shader> init_shader() {
  * **   Geometry handling
  * **
  * ************************************************************************************************/
-void init_vbo(GLuint vbo, const glm::vec3 &colour) {
+void init_vbo(GLuint vbo) {
   float wall_vertices[] = {
-    -2.0f, -1.0f, -0.5f, 0, 0, 0,
-    2.0f, -1.0f, -0.5f, 0, 0, 0,
-    2.0f, -1.0f, 0.5f, 0, 0, 0,
-    -2.0f, -1.0f, 0.5f, 0, 0, 0,
-    -2.0f, 1.0f, -0.5f, 0, 0, 0,
-    2.0f, 1.0f, -0.5f, 0, 0, 0,
-    2.0f, 1.0f, 0.5f, 0, 0, 0,
-    -2.0f, 1.0f, 0.5f, 0, 0, 0,
+    -1.5f, -1.0f, 2.0f,
+    1.5f, -1.0f, 2.0f,
+    1.5f, -1.0f, 2.5f,
+    -1.5f, -1.0f, 2.5f,
+    -1.5f, 1.0f, 2.0f,
+    1.5f, 1.0f, 2.0f,
+    1.5f, 1.0f, 2.5f,
+    -1.5f, 1.0f, 2.5f,
   };
-  for (auto i = 0; i < 8; ++i) {
-    wall_vertices[i * 6 + 3] = colour.r;
-    wall_vertices[i * 6 + 4] = colour.g;
-    wall_vertices[i * 6 + 5] = colour.b;
-  }
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, 8 * 6 * sizeof(float), wall_vertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, 8 * 3 * sizeof(float), wall_vertices, GL_STATIC_DRAW);
 }
 
 void init_ebo(GLuint ebo) {
@@ -121,15 +117,13 @@ void init_geometry(GLuint &vao, GLuint &vbo, GLuint &ebo) {
   glGenBuffers(2, buffs);
 
   vbo = buffs[0];
-  init_vbo(vbo, glm::vec3{1.0f, 0.0f, 0.0f});
+  init_vbo(vbo);
 
   ebo = buffs[1];
   init_ebo(ebo);
 
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3,GL_FLOAT,GL_FALSE, 24, (GLvoid *) nullptr);
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(1, 3,GL_FLOAT,GL_FALSE, 24, (GLvoid *) 12);
+  glVertexAttribPointer(0, 3,GL_FLOAT,GL_FALSE, 12, (GLvoid *) nullptr);
 }
 
 /* ************************************************************************************************
@@ -158,9 +152,9 @@ int main() {
 
   auto shader = init_shader();
 
-  float sigma_a = 0.7f;
-  glm::vec3 volume_colour(1,1,1);
-  glm::vec3 wall_colour(0.5,0,0);
+  float sigma_a = 0.1f;
+  glm::vec3 wall_colour(0.572f, 0.772f, 0.921f);
+  glm::vec3 scatter_colour(0.8f, 0.1f, 0.5f);
 
   /* ************************************************************************************************
    * **
@@ -178,8 +172,8 @@ int main() {
     ImGui::Begin("Controls", nullptr, 0);
 
     ImGui::SliderFloat("sigma_a", &sigma_a, 0, 1.0f, "%0.3f", ImGuiSliderFlags_Logarithmic);
-    ImGui::ColorEdit3("voluVme colour", &volume_colour[0],ImGuiColorEditFlags_None);
-    ImGui::ColorEdit3("Wall colour", &wall_colour[0],ImGuiColorEditFlags_None);
+    ImGui::ColorEdit3("Scatter colour", &scatter_colour[0],ImGuiColorEditFlags_NoInputs);
+    ImGui::ColorEdit3("Wall colour", &wall_colour[0],ImGuiColorEditFlags_NoInputs);
     ImGui::End();
 
     /* ********************************************************************************
@@ -195,12 +189,23 @@ int main() {
     glClearColor(0.2f, 0.2f, 0.4f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    auto aspect_ratio = static_cast<float>(display_w) / static_cast<float>(display_h);
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect_ratio, 0.01f, 100.0f);
+    auto view = glm::translate(glm::mat4{1}, glm::vec3{0,0,-5.0f});
+    glm::vec3 cam_pos = glm::inverse(view) * glm::vec4(0,0,0,1);
+
+    auto model = glm::mat4{1};
+
     glBindVertexArray(vao);
     shader->use();
-    shader->set_uniform("aspect_ratio", static_cast<float>(display_w) / static_cast<float>(display_h));
-    shader->set_uniform("volume_colour", volume_colour);
+    shader->set_uniform("scatter_colour", scatter_colour);
     shader->set_uniform("wall_colour", wall_colour);
     shader->set_uniform("sigma_a", sigma_a);
+    shader->set_uniform("projection",projection);
+    shader->set_uniform("view", view);
+    shader->set_uniform("model", model);
+    shader->set_uniform("cam_pos", cam_pos);
+
 
     glDrawElements(GL_TRIANGLES, 36,GL_UNSIGNED_INT, 0);
 
