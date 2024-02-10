@@ -202,6 +202,7 @@ int main() {
     shader->set_uniform("view", view);
     shader->set_uniform("model", model);
     shader->set_uniform("cam_pos", cam_pos);
+    shader->set_uniform("step_size", 0.01f);
 
 
     glDrawElements(GL_TRIANGLES, 36,GL_UNSIGNED_INT, 0);
