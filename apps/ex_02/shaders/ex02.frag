@@ -9,6 +9,8 @@ uniform float sigma_a;
 uniform vec3 scatter_colour;
 uniform vec3 cam_pos;
 uniform float step_size;
+uniform vec3 light_position;
+uniform vec3 light_colour;
 
 bool intersects_unit_sphere(vec3 ray_dir, vec3 cam_pos, out float t0, out float t1){
     vec3 L = -cam_pos;// Since the sphere is at the origin, L is just -cam_pos
@@ -28,6 +30,16 @@ bool intersects_unit_sphere(vec3 ray_dir, vec3 cam_pos, out float t0, out float 
     return true;// Intersection occurs
 }
 
+vec3 get_light_contribution(vec3 start_pos, vec3 light_position, vec3 light_colour, vec3 scatter_colour, float sigma_a){
+    float t0 = 0;
+    float t1 = 0;
+    vec3 ray_dir = normalize(start_pos-light_position);
+    intersects_unit_sphere(ray_dir, start_pos, t0, t1);
+    float distance = t1;// t0 is implicitly 0
+    float T = exp(-distance * sigma_a);
+    return  (T * light_colour) + ((1 - T) * scatter_colour);
+}
+
 void main() {
     // Ray direction
     vec3 ray_dir = normalize(cam_pos-world_pos);
@@ -37,11 +49,14 @@ void main() {
     float distance = intersects ? t1 - t0 : 0;
 
     int num_steps = int(round(distance / step_size));
-    float T = 1;
-    for (int i=0; i < num_steps; i++) {
-        T = T * exp(-step_size * sigma_a);
+    vec3 bleed_through_light = colour;
+    for (float i=0.5f; i < num_steps; i+=1.0f) {
+        vec3 start_pos = cam_pos + (t0 + (i * step_size)) * ray_dir;
+//        vec3 lc = get_light_contribution(start_pos, light_position, light_colour, scatter_colour, sigma_a);
+        float T = exp(-step_size * sigma_a);
+        bleed_through_light = (T * bleed_through_light) + ((1 - T) * scatter_colour);
+//        bleed_through_light += lc;
     }
-    vec3 background_color_through_volume = (T * colour) + ((1 - T) * scatter_colour);
-    frag_colour = vec4(background_color_through_volume, 1);
+    frag_colour = vec4(bleed_through_light, 1);
 }
 
