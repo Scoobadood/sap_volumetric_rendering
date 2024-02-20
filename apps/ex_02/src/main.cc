@@ -150,8 +150,12 @@ int main() {
   auto shader = init_shader();
 
   float sigma_a = 0.1f;
+  float sigma_s = 0.1f;
+  int32_t light_angle = 90;
+  float light_z = 0.0f;
   glm::vec3 wall_colour(0.572f, 0.772f, 0.921f);
-  glm::vec3 scatter_colour(0.8f, 0.1f, 0.5f);
+  glm::vec3 light_colour{1.0f, 0.3 / 1.3, 0.9 / 1.3};
+  bool march_forwards = true;
 
   /* ************************************************************************************************
    * **
@@ -168,10 +172,18 @@ int main() {
 
     ImGui::Begin("Controls", nullptr, 0);
 
-    ImGui::SliderFloat("sigma_a", &sigma_a, 0, 1.0f, "%0.3f", ImGuiSliderFlags_Logarithmic);
-    ImGui::ColorEdit3("Scatter colour", &scatter_colour[0],ImGuiColorEditFlags_NoInputs);
-    ImGui::ColorEdit3("Wall colour", &wall_colour[0],ImGuiColorEditFlags_NoInputs);
+    ImGui::SliderFloat("sigma_a", &sigma_a, 0, 1.0f, "%0.3f", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderFloat("sigma_s", &sigma_s, 0, 1.0f, "%0.3f", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderInt("Light Pos (𝜃)", &light_angle, 0, 359, "%d", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderFloat("Light Pos (Z)", &light_z, -20, 20, "%0.1f", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::ColorEdit3("Light colour", &light_colour[0], ImGuiColorEditFlags_NoInputs);
+    ImGui::ColorEdit3("Wall colour", &wall_colour[0], ImGuiColorEditFlags_NoInputs);
+    ImGui::Checkbox("March forwards", &march_forwards);
     ImGui::End();
+
+    auto light_position = glm::vec3(10 * cosf((light_angle / 180.0f) * (float) M_PI),
+                                    10 * sinf((light_angle / 180.0f) * (float) M_PI),
+                                    light_z);
 
     /* ********************************************************************************
      * *
@@ -188,23 +200,26 @@ int main() {
 
     auto aspect_ratio = static_cast<float>(display_w) / static_cast<float>(display_h);
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect_ratio, 0.01f, 100.0f);
-    auto view = glm::translate(glm::mat4{1}, glm::vec3{0,0,-5.0f});
-    glm::vec3 cam_pos = glm::inverse(view) * glm::vec4(0,0,0,1);
+    auto view = glm::translate(glm::mat4{1}, glm::vec3{0, 0, -5.0f});
+    glm::vec3 cam_pos = glm::inverse(view) * glm::vec4(0, 0, 0, 1);
 
     auto model = glm::mat4{1};
 
     glBindVertexArray(vao);
     shader->use();
-    shader->set_uniform("scatter_colour", scatter_colour);
     shader->set_uniform("wall_colour", wall_colour);
     shader->set_uniform("sigma_a", sigma_a);
-    shader->set_uniform("projection",projection);
+    shader->set_uniform("sigma_s", sigma_s);
+    shader->set_uniform("projection", projection);
     shader->set_uniform("view", view);
     shader->set_uniform("model", model);
     shader->set_uniform("cam_pos", cam_pos);
-    shader->set_uniform("step_size", 0.01f);
-    shader->set_uniform("light_colour", glm::vec3{0,1,0});
-    shader->set_uniform("light_position", glm::vec3{-4,0,0});
+    shader->set_uniform("sphere_pos", glm::vec3(0,0,-20));
+    shader->set_uniform("sphere_radius", 5.0f);
+    shader->set_uniform("step_size", 0.2f);
+    shader->set_uniform("light_colour", light_colour);
+    shader->set_uniform("light_position",light_position);
+    shader->set_uniform("do_march_forwards",march_forwards);
 
 
     glDrawElements(GL_TRIANGLES, 36,GL_UNSIGNED_INT, 0);
